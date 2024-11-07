@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque e Vendas</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h1>Controle de Estoque e Vendas</h1>
+    <form id="estoqueForm">
+        <label for="produtoEstoque">Produto:</label>
+        <input type="text" id="produtoEstoque" name="produtoEstoque" required>
+        <label for="quantidadeEstoque">Quantidade:</label>
+        <input type="number" id="quantidadeEstoque" name="quantidadeEstoque" required>
+        <button type="submit">Adicionar ao Estoque</button>
+    </form>
+
+    <h2>Estoque</h2>
+    <table id="estoqueTable">
+        <thead>
+            <tr>
+                <th>Produto</th>
+                <th>Quantidade</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Estoque inicial pode ser adicionado aqui -->
+        </tbody>
+    </table>
+
+    <form id="vendaForm">
+        <label for="produto">Produto:</label>
+        <input type="text" id="produto" name="produto" required>
+        <label for="quantidade">Quantidade:</label>
+        <input type="number" id="quantidade" name="quantidade" required>
+        <label for="vendedor">Vendedor:</label>
+        <input type="text" id="vendedor" name="vendedor" required>
+        <label for="data">Data:</label>
+        <input type="date" id="data" name="data" required>
+        <button type="submit">Registrar Venda</button>
+    </form>
+
+    <h2>Vendas</h2>
+    <table id="vendasTable">
+        <thead>
+            <tr>
+                <th>Produto</th>
+                <th>Quantidade</th>
+                <th>Vendedor</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Vendas registradas aparecerão aqui -->
+        </tbody>
+    </table>
+    <button onclick="gerarPDF()">Baixar PDF</button>
+    <button onclick="limparDados()">Limpar Informações</button>
+
+    <script>
+        const estoqueForm = document.getElementById('estoqueForm');
+        const vendaForm = document.getElementById('vendaForm');
+        const estoqueTable = document.getElementById('estoqueTable').getElementsByTagName('tbody')[0];
+        const vendasTable = document.getElementById('vendasTable').getElementsByTagName('tbody')[0];
+
+        // Carregar dados do localStorage ao carregar a página
+        window.onload = function() {
+            carregarDados();
+        };
+
+        estoqueForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const produto = document.getElementById('produtoEstoque').value;
+            const quantidade = parseInt(document.getElementById('quantidadeEstoque').value);
+
+            // Adicionar produto ao estoque
+            let produtoEncontrado = false;
+            for (let row of estoqueTable.rows) {
+                if (row.cells[0].textContent === produto) {
+                    row.cells[1].textContent = parseInt(row.cells[1].textContent) + quantidade;
+                    produtoEncontrado = true;
+                    break;
+                }
+            }
+
+            if (!produtoEncontrado) {
+                const estoqueRow = estoqueTable.insertRow();
+                estoqueRow.insertCell(0).textContent = produto;
+                estoqueRow.insertCell(1).textContent = quantidade;
+            }
+
+            // Salvar dados no localStorage
+            salvarDados();
+
+            // Limpar formulário
+            estoqueForm.reset();
+        });
+
+        vendaForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const produto = document.getElementById('produto').value;
+            const quantidade = parseInt(document.getElementById('quantidade').value);
+            const vendedor = document.getElementById('vendedor').value;
+            const data = document.getElementById('data').value;
+
+            // Adicionar venda à tabela de vendas
+            const vendaRow = vendasTable.insertRow();
+            vendaRow.insertCell(0).textContent = produto;
+            vendaRow.insertCell(1).textContent = quantidade;
+            vendaRow.insertCell(2).textContent = vendedor;
+            vendaRow.insertCell(3).textContent = data;
+
+            // Atualizar estoque
+            let produtoEncontrado = false;
+            for (let row of estoqueTable.rows) {
+                if (row.cells[0].textContent === produto) {
+                    row.cells[1].textContent = parseInt(row.cells[1].textContent) - quantidade;
+                    produtoEncontrado = true;
+                    break;
+                }
+            }
+
+            if (!produtoEncontrado) {
+                const estoqueRow = estoqueTable.insertRow();
+                estoqueRow.insertCell(0).textContent = produto;
+                estoqueRow.insertCell(1).textContent = -quantidade;
+            }
+
+            // Salvar dados no localStorage
+            salvarDados();
+
+            // Limpar formulário
+            vendaForm.reset();
+        });
+
+        function salvarDados() {
+            const estoque = [];
+            for (let row of estoqueTable.rows) {
+                estoque.push({
+                    produto: row.cells[0].textContent,
+                    quantidade: row.cells[1].textContent
+                });
+            }
+            localStorage.setItem('estoque', JSON.stringify(estoque));
+
+            const vendas = [];
+            for (let row of vendasTable.rows) {
+                vendas.push({
+                    produto: row.cells[0].textContent,
+                    quantidade: row.cells[1].textContent,
+                    vendedor: row.cells[2].textContent,
+                    data: row.cells[3].textContent
+                });
+            }
+            localStorage.setItem('vendas', JSON.stringify(vendas));
+        }
+
+        function carregarDados() {
+            const estoque = JSON.parse(localStorage.getItem('estoque')) || [];
+            for (let item of estoque) {
+                const row = estoqueTable.insertRow();
+                row.insertCell(0).textContent = item.produto;
+                row.insertCell(1).textContent = item.quantidade;
+            }
+
+            const vendas = JSON.parse(localStorage.getItem('vendas')) || [];
+            for (let item of vendas) {
+                const row = vendasTable.insertRow();
+                row.insertCell(0).textContent = item.produto;
+                row.insertCell(1).textContent = item.quantidade;
+                row.insertCell(2).textContent = item.vendedor;
+                row.insertCell(3).textContent = item.data;
+            }
+        }
+
+        function limparDados() {
+            localStorage.removeItem('estoque');
+            localStorage.removeItem('vendas');
+            while (estoqueTable.rows.length > 0) {
+                estoqueTable.deleteRow(0);
+            }
+            while (vendasTable.rows.length > 0) {
+                vendasTable.deleteRow(0);
+            }
+        }
+
+        async function gerarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.text("Estoque", 10, 10);
+            let y = 20;
+            for (let row of estoqueTable.rows) {
+                doc.text(`${row.cells[0].textContent}: ${row.cells[1].textContent}`, 10, y);
+                y += 10;
+            }
+
+            doc.addPage();
+            doc.text("Vendas", 10, 10);
+            y = 20;
+            for (let row of vendasTable.rows) {
+                doc.text(`${row.cells[0].textContent} - ${row.cells[1].textContent} - ${row.cells[2].textContent} - ${row.cells[3].textContent}`, 10, y);
+                y += 10;
+            }
+
+            doc.save("controle_estoque_vendas.pdf");
+        }
+    </script>
+</body>
+</html>
+
+
+
+
